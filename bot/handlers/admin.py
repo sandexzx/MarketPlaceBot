@@ -187,9 +187,15 @@ async def start_edit_photos(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(AdminStates.confirm_creation, F.data == "confirm")
 async def confirm_creation(callback: CallbackQuery, state: FSMContext, session: Session):
     data = await state.get_data()
+
+    if 'is_promotional' in data and data['is_promotional']:
+        ad_id = generate_promo_id()
+    else:
+        ad_id = Advertisement.get_next_regular_id(session)
     
     # Создаём объявление
     ad = Advertisement(
+        id=ad_id,  # Явно задаем ID
         description=data["description"],
         price=data["price"],
         manager_link=data["manager_link"]

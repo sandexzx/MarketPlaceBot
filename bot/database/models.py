@@ -3,6 +3,7 @@ from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy import Boolean
+from sqlalchemy import select, func
 
 Base = declarative_base()
 
@@ -21,6 +22,13 @@ class Advertisement(Base):
     
     # Связь с фотографиями
     photos = relationship("Photo", back_populates="advertisement", cascade="all, delete-orphan")
+
+    @classmethod
+    def get_next_regular_id(cls, session):
+        """Получает следующий ID для обычного объявления"""
+        # Находим максимальный ID среди обычных объявлений
+        max_regular_id = session.query(func.max(cls.id)).filter(cls.id < 900000).scalar() or 0
+        return max_regular_id + 1
 
 class Photo(Base):
     __tablename__ = 'photos'
