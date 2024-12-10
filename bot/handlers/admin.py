@@ -76,7 +76,7 @@ async def process_description(message: Message, state: FSMContext):
     """Обрабатываем полученное описание и запрашиваем цену"""
     await state.update_data(description=message.text)
     await state.set_state(AdminStates.waiting_for_price)
-    await message.answer("💰 Укажите цену (только число):")
+    await message.answer("💰 Укажите цену:")
 
 # Приём цены
 @router.message(AdminStates.waiting_for_price)
@@ -395,7 +395,7 @@ async def start_edit_price(callback: CallbackQuery, state: FSMContext):
     await state.set_state(EditStates.edit_price)
     
     await callback.message.answer(
-        "💰 Укажите новую цену (только число):",
+        "💰 Укажите новую цену:",
         reply_markup=ReplyKeyboardMarkup(
             keyboard=[[KeyboardButton(text="Отмена")]], 
             resize_keyboard=True
