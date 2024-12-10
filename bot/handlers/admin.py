@@ -12,6 +12,7 @@ from ..keyboards import admin_kb
 from ..utils.states import AdminStates, EditStates
 from ..config import ADMIN_IDS
 from .user import cmd_start
+from ..utils.notifications import notify_new_ad
 
 router = Router()
 
@@ -207,6 +208,11 @@ async def confirm_creation(callback: CallbackQuery, state: FSMContext, session: 
         session.add(photo)
     
     session.commit()
+
+     # Отправляем уведомления о новом объявлении
+    await notify_new_ad(callback.bot, session, ad)
+    
+    await state.clear()
     
     await state.clear()
     # Отправляем новое сообщение вместо редактирования

@@ -14,3 +14,4 @@ bot/utils/__pycache__/messages.cpython-312.pyc
 bot/utils/__pycache__/states.cpython-312.pyc
 data/bot.db
 TODO
+bot/utils/__pycache__/notifications.cpython-312.pyc

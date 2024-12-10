@@ -7,19 +7,33 @@ from sqlalchemy import select, func
 from ..database.models import Advertisement, Photo
 from ..keyboards import user_kb
 from ..utils import messages
+from ..database.models import User
 
 router = Router()
 
 @router.message(Command("start"))
-async def cmd_start(message: Message):
+async def cmd_start(message: Message, session: Session):
     """
     Обработчик команды /start
-    Показывает приветственное сообщение и кнопку для начала просмотра
+    Регистрирует пользователя и показывает приветственное сообщение
     """
+    # Сохраняем информацию о пользователе
+    user = session.query(User).filter(User.telegram_id == message.from_user.id).first()
+    if not user:
+        user = User(
+            telegram_id=message.from_user.id,
+            username=message.from_user.username,
+            first_name=message.from_user.first_name,
+            last_name=message.from_user.last_name
+        )
+        session.add(user)
+        session.commit()
+    
     await message.answer(
         messages.WELCOME_MESSAGE,
         reply_markup=user_kb.get_start_kb()
     )
+
 
 @router.callback_query(F.data == "show_ads")
 async def show_first_ad(callback: CallbackQuery, session: Session):
@@ -198,3 +212,16 @@ async def rent_ad(callback: CallbackQuery, session: Session):
     await callback.message.answer(
         f"👤 Для аренды свяжитесь с менеджером:\n{ad.manager_link}"
     )
+
+@router.message(Command("notifications"))
+async def toggle_notifications(message: Message, session: Session):
+    """Включение/выключение уведомлений"""
+    user = session.query(User).filter(User.telegram_id == message.from_user.id).first()
+    if not user:
+        return
+        
+    user.notifications_enabled = not user.notifications_enabled
+    session.commit()
+    
+    status = "включены ✅" if user.notifications_enabled else "выключены ❌"
+    await message.answer(f"Уведомления о новых объявлениях {status}")
