@@ -130,8 +130,10 @@ async def show_advertisement(message, ad, session, current_position, total_ads, 
                 await message.bot.send_photo(
                     chat_id=message.chat.id,
                     photo=photos[0].photo_file_id,
-                    caption=format_ad_description(ad)
+                    caption=format_ad_description(ad),
+                    parse_mode='Markdown'
                 )
+
                 await message.bot.send_message(
                     chat_id=message.chat.id,
                     text="Используйте кнопки ниже для навигации:",
@@ -153,25 +155,30 @@ async def show_advertisement(message, ad, session, current_position, total_ads, 
             for photo in photos
         ]
         # Добавляем описание к последнему фото
-        media_group[-1].caption = format_ad_description(ad)
-        
+        media_group[-1] = InputMediaPhoto(
+            media=media_group[-1].media,
+            caption=format_ad_description(ad),
+            parse_mode='Markdown'
+        )
+
         if edit:
             await message.delete()
             bot = message.bot
-            # Отправляем медиагруппу
             await bot.send_media_group(chat_id=message.chat.id, media=media_group)
-            # Отдельным сообщением отправляем кнопки навигации
             await bot.send_message(
                 chat_id=message.chat.id,
                 text="Используйте кнопки ниже для навигации:",
-                reply_markup=navigation_kb
+                reply_markup=navigation_kb,
+                parse_mode='Markdown'
             )
         else:
             await message.answer_media_group(media_group)
             await message.answer(
                 "Используйте кнопки ниже для навигации:",
-                reply_markup=navigation_kb
+                reply_markup=navigation_kb,
+                parse_mode='Markdown'
             )
+
 
 def format_ad_description(ad: Advertisement) -> str:
     """

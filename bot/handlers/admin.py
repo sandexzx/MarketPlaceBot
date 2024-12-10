@@ -109,13 +109,14 @@ async def process_manager_link(message: Message, state: FSMContext, session: Ses
         for photo_id in data['photos'][:-1]  # Берем все фотки кроме последней
     ]
     
-    # Добавляем последнюю фотку с текстом описания
     media_group.append(
         InputMediaPhoto(
             media=data['photos'][-1],
-            caption=preview_text
+            caption=preview_text,
+            parse_mode='Markdown'
         )
     )
+
 
     # Отправляем медиа-группу
     sent_messages = await message.answer_media_group(media_group)
