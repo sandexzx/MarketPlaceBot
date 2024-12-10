@@ -17,3 +17,6 @@ class EditStates(StatesGroup):
     edit_price = State()
     edit_manager = State()
     confirm_edit = State()
+
+class UserStates(StatesGroup):
+    viewing_ads = State()  # Пользователь просматривает объявления

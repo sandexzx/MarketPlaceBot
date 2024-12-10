@@ -9,6 +9,9 @@ from aiogram.types import FSInputFile
 import logging
 import random
 from sqlalchemy import or_
+from aiogram.fsm.context import FSMContext
+from ..utils.states import UserStates
+
 
 from ..database.models import Advertisement, Photo
 from ..keyboards import user_kb
@@ -62,7 +65,7 @@ async def cmd_start(message: Message, session: Session):
 
 
 @router.callback_query(F.data == "show_ads")
-async def show_first_ad(callback: CallbackQuery, session: Session):
+async def show_first_ad(callback: CallbackQuery, session: Session, state: FSMContext):
     """
     Показывает первое доступное объявление
     Добавляет кнопки навигации и контакта с менеджером
@@ -71,10 +74,8 @@ async def show_first_ad(callback: CallbackQuery, session: Session):
     query = select(Advertisement).where(Advertisement.is_promotional == False).order_by(Advertisement.created_at.desc())
     ads = session.scalars(query).all()
     
-    if not ads:  # Проверяем, пуст ли список ads
-        # Удаляем старое сообщение с кнопкой
+    if not ads:
         await callback.message.delete()
-        # Отправляем новое сообщение
         await callback.message.answer(
             messages.NO_ADS_MESSAGE,
             reply_markup=user_kb.get_start_kb()
@@ -90,6 +91,11 @@ async def show_first_ad(callback: CallbackQuery, session: Session):
         total_ads=len(ads),
         edit=True
     )
+
+    # Переходим в состояние просмотра объявлений и сохраняем текущий индекс
+    # Первый элемент в списке ads соответствует индексу 0
+    await state.set_state(UserStates.viewing_ads)
+    await state.update_data(current_index=0, total_ads=len(ads))
 
 async def show_advertisement(message, ad, session, current_position, total_ads, edit=False):
     """
@@ -193,98 +199,86 @@ def format_ad_description(ad: Advertisement) -> str:
         )
 
 @router.callback_query(F.data.startswith(("next_", "prev_")))
-async def navigate_ads(callback: CallbackQuery, session: Session):
+async def navigate_ads(callback: CallbackQuery, session: Session, state: FSMContext):
     """
     Обработчик навигации по объявлениям
     Показывает следующее/предыдущее объявление с шансом показа рекламы
     """
     action, ad_id_str = callback.data.split("_")
     ad_id = int(ad_id_str)
-    
+
+    data = await state.get_data()
+    current_index = data.get("current_index", 0)
+    total_ads = data.get("total_ads", 0)
+
     # Получаем все обычные объявления
     regular_ads = session.scalars(
         select(Advertisement)
-        .where(Advertisement.is_promotional == False)  # noqa: E712
+        .where(Advertisement.is_promotional == False)
         .order_by(Advertisement.created_at.desc())
     ).all()
-    
+
     # Получаем все рекламные объявления
     promo_ads = session.scalars(
         select(Advertisement)
-        .where(Advertisement.is_promotional == True)  # noqa: E712
+        .where(Advertisement.is_promotional == True)
         .order_by(Advertisement.created_at.desc())
     ).all()
-    
+
+    # Находим текущее объявление по индексу
+    # Если число объявлений изменилось, проверим актуальность current_index
+    if current_index >= len(regular_ads):
+        # Если текущий индекс вне диапазона (например, объявления удалили),
+        # сбрасываем позицию на 0
+        current_index = 0
+
+    # Если нет обычных объявлений
     if not regular_ads:
         await callback.answer("Объявлений нет! 🤷‍♂️")
         return
 
-    # Находим текущее объявление
-    current_ad = session.get(Advertisement, ad_id)
-    if not current_ad:
-        # Если объявление не найдено, показываем первое обычное объявление
-        await show_advertisement(
-            callback.message,
-            regular_ads[0],
-            session,
-            current_position=1,
-            total_ads=len(regular_ads),
-            edit=True
-        )
-        return
-
-    # Определяем следующее объявление
+    # Двигаем индекс в зависимости от действия
     if action == "next":
-        if current_ad.is_promotional:
-            # Если это реклама, ищем следующее объявление после последнего просмотренного
-            last_viewed = session.scalar(
-                select(Advertisement)
-                .where(Advertisement.is_promotional == False)  # noqa: E712
-                .order_by(Advertisement.last_shown.desc())
-            )
-            if last_viewed:
-                current_index = next((i for i, ad in enumerate(regular_ads) if ad.id == last_viewed.id), -1) + 1
-            else:
-                current_index = 0
+        # Проверяем, не достигли ли конца
+        if current_index < len(regular_ads) - 1:
+            current_index += 1
         else:
-            current_index = next((i for i, ad in enumerate(regular_ads) if ad.id == ad_id), None)
-            if current_index is None:
-                current_index = 0
-            else:
-                current_index += 1
+            await callback.answer("Это последнее объявление! 🤷‍♂️")
+            return
     else:  # prev
-        if current_ad.is_promotional:
-            current_index = len(regular_ads) - 1
-        else:
-            current_index = next((i for i, ad in enumerate(regular_ads) if ad.id == ad_id), None)
-            if current_index is None or current_index == 0:
-                await callback.answer("Это первое объявление! 🤷‍♂️")
-                return
+        if current_index > 0:
             current_index -= 1
+        else:
+            await callback.answer("Это первое объявление! 🤷‍♂️")
+            return
 
-    # Проверяем границы
-    if current_index >= len(regular_ads):
-        await callback.answer("Это последнее объявление! 🤷‍♂️")
-        return
+    # С вероятностью 20% показываем рекламное объявление при переходе вперед,
+    # но только если действие "next"
+    show_promo = (action == "next") and (random.random() < 0.2) and promo_ads
 
-    # С вероятностью 20% показываем рекламное объявление
-    show_promo = random.random() < 0.2 and promo_ads and action == "next"
-    
     if show_promo:
-        # Выбираем случайное рекламное объявление
+        # Показываем случайное рекламное объявление
         ad_to_show = random.choice(promo_ads)
+        # Откатываем индекс назад, т.к. после рекламы должно показаться следующее обычное объявление
+        if action == "next":
+            current_index -= 1  # Компенсируем increment, который был сделан ранее
     else:
+        # Показываем очередное обычное объявление по текущему индексу
         ad_to_show = regular_ads[current_index]
 
-    # Показываем выбранное объявление
+    # Отображаем выбранное объявление
     await show_advertisement(
         callback.message,
         ad_to_show,
         session,
-        current_position=current_index + 1,
+        current_position=(current_index + 1),
         total_ads=len(regular_ads),
         edit=True
     )
+
+    # Сохраняем обновленный индекс и общее количество объявлений
+    await state.update_data(current_index=current_index, total_ads=len(regular_ads))
+
 
 @router.callback_query(F.data.startswith("rent_"))
 async def rent_ad(callback: CallbackQuery, session: Session):
