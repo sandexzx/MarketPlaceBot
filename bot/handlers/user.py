@@ -32,9 +32,12 @@ async def show_first_ad(callback: CallbackQuery, session: Session):
     ad = session.scalar(query)
     
     if not ad:
-        await callback.message.edit_text(
+        # Удаляем старое сообщение с кнопкой
+        await callback.message.delete()
+        # Отправляем новое сообщение
+        await callback.message.answer(
             messages.NO_ADS_MESSAGE,
-            reply_markup=None
+            reply_markup=user_kb.get_start_kb()  # Возвращаем кнопку просмотра
         )
         return
 
@@ -63,8 +66,32 @@ async def show_advertisement(message, ad, session, current_position, total_ads, 
         .order_by(Photo.position)
     ).all()
     
-    # Если больше одной фотографии - создаём медиагруппу
-    if len(photos) > 1:
+    if not photos:
+        # Защита от случая, когда у объявления почему-то нет фотографий
+        await message.answer(
+            f"⚠️ Ошибка: у объявления нет фотографий!\n\n{format_ad_description(ad)}",
+            reply_markup=user_kb.get_navigation_kb(current_position, total_ads)
+        )
+        return
+        
+    if len(photos) == 1:
+        # Для одной фотографии используем простой answer_photo
+        if edit:
+            await message.delete()
+            await message.bot.send_photo(
+                chat_id=message.chat.id,
+                photo=photos[0].photo_file_id,
+                caption=format_ad_description(ad),
+                reply_markup=user_kb.get_navigation_kb(current_position, total_ads)
+            )
+        else:
+            await message.answer_photo(
+                photo=photos[0].photo_file_id,
+                caption=format_ad_description(ad),
+                reply_markup=user_kb.get_navigation_kb(current_position, total_ads)
+            )
+    else:
+        # Для нескольких фотографий используем медиагруппу
         media_group = [
             InputMediaPhoto(media=photo.photo_file_id)
             for photo in photos
@@ -73,23 +100,19 @@ async def show_advertisement(message, ad, session, current_position, total_ads, 
         media_group[-1].caption = format_ad_description(ad)
         
         if edit:
-            # Удаляем предыдущее сообщение
             await message.delete()
             # Получаем объект бота из message
             bot = message.bot
             # Отправляем медиагруппу через бота
             await bot.send_media_group(chat_id=message.chat.id, media=media_group)
-        else:
-            await message.answer_media_group(media_group)
-        
-        # Отправляем кнопки навигации
-        if edit:
-            await message.bot.send_message(
+            # Отправляем кнопки отдельным сообщением
+            await bot.send_message(
                 chat_id=message.chat.id,
                 text="Используйте кнопки ниже для навигации:",
                 reply_markup=user_kb.get_navigation_kb(current_position, total_ads)
             )
         else:
+            await message.answer_media_group(media_group)
             await message.answer(
                 "Используйте кнопки ниже для навигации:",
                 reply_markup=user_kb.get_navigation_kb(current_position, total_ads)
