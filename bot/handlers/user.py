@@ -161,7 +161,7 @@ def format_ad_description(ad: Advertisement) -> str:
     return (
         f"📝 Описание:\n"
         f"{ad.description}\n\n"
-        f"💰 Цена: {ad.price:,.2f} ₽\n"
+        f"💰 Цена: {ad.price}\n"
     )
 
 @router.callback_query(F.data.startswith(("next_", "prev_")))

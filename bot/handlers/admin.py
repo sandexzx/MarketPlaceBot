@@ -81,16 +81,8 @@ async def process_description(message: Message, state: FSMContext):
 # Приём цены
 @router.message(AdminStates.waiting_for_price)
 async def process_price(message: Message, state: FSMContext):
-    """Проверяем корректность цены и запрашиваем ссылку на менеджера"""
-    try:
-        price = float(message.text.replace(',', '.'))
-        if price <= 0:
-            raise ValueError
-    except ValueError:
-        await message.answer("❌ Некорректная цена! Введите положительное число:")
-        return
-
-    await state.update_data(price=price)
+    """Сохраняем введенную цену без валидации"""
+    await state.update_data(price=message.text)
     await state.set_state(AdminStates.waiting_for_manager)
     await message.answer("👤 Отправьте ссылку на менеджера:")
 
@@ -105,7 +97,7 @@ async def process_manager_link(message: Message, state: FSMContext, session: Ses
     preview_text = (
         "📋 Предпросмотр объявления:\n\n"
         f"📝 Описание:\n{data['description']}\n\n"
-        f"💰 Цена: {data['price']:,.2f} ₽\n\n"
+        f"💰 Цена: {data['price']}\n\n"
         f"👤 Менеджер: {data['manager_link']}\n\n"
         "Все верно?"
     )
@@ -148,7 +140,7 @@ async def list_ads_for_edit(message: Message, session: Session):
     text = "📝 Выберите объявление для редактирования:\n\n"
     for ad in ads:
         text += f"ID {ad.id}: {ad.description[:50]}...\n"
-        text += f"💰 Цена: {ad.price:,.2f} ₽\n\n"
+        text += f"💰 Цена: {ad.price}\n\n"
 
     await message.answer(text, reply_markup=admin_kb.get_ads_list_kb(ads))
 
@@ -166,7 +158,7 @@ async def show_edit_options(callback: CallbackQuery, session: Session):
     await callback.message.edit_text(
         f"🔧 Редактирование объявления ID{ad.id}\n"
         f"Текущее описание: {ad.description[:100]}...\n"
-        f"Текущая цена: {ad.price:,.2f} ₽\n\n"
+        f"Текущая цена: {ad.price}\n\n"
         "Выберите, что хотите изменить:",
         reply_markup=admin_kb.get_edit_ad_kb(ad_id)
     )
@@ -192,7 +184,7 @@ async def confirm_creation(callback: CallbackQuery, state: FSMContext, session: 
     # Создаём объявление
     ad = Advertisement(
         description=data["description"],
-        price=float(data["price"]),
+        price=data["price"],
         manager_link=data["manager_link"]
     )
     session.add(ad)
@@ -243,7 +235,7 @@ async def list_ads_for_delete(message: Message, session: Session):
     text = "🗑 Выберите объявление для удаления:\n\n"
     for ad in ads:
         text += f"ID {ad.id}: {ad.description[:50]}...\n"
-        text += f"💰 Цена: {ad.price:,.2f} ₽\n\n"
+        text += f"💰 Цена: {ad.price}\n\n"
 
     await message.answer(text, reply_markup=admin_kb.get_delete_ads_kb(ads))
 
@@ -261,7 +253,7 @@ async def confirm_delete_ad(callback: CallbackQuery, session: Session):
     await callback.message.edit_text(
         f"⚠️ Вы уверены, что хотите удалить объявление ID{ad_id}?\n\n"
         f"Описание: {ad.description[:100]}...\n"
-        f"Цена: {ad.price:,.2f} ₽",
+        f"Цена: {ad.price}",
         reply_markup=admin_kb.get_delete_confirm_kb(ad_id)
     )
 
@@ -413,26 +405,19 @@ async def start_edit_price(callback: CallbackQuery, state: FSMContext):
 @router.message(EditStates.edit_price)
 async def save_edited_price(message: Message, state: FSMContext, session: Session):
     """Сохраняем новую цену"""
-    try:
-        price = float(message.text.replace(',', '.'))
-        if price <= 0:
-            raise ValueError
-            
-        data = await state.get_data()
-        ad_id = data["editing_ad_id"]
-        ad = session.get(Advertisement, ad_id)
-        
-        if ad:
-            ad.price = price
-            session.commit()
-            await state.clear()
-            await message.answer(
-                "✅ Цена успешно обновлена!", 
-                reply_markup=ReplyKeyboardRemove()
-            )
-            await admin_panel(message)
-    except ValueError:
-        await message.answer("❌ Некорректная цена! Введите положительное число:")
+    data = await state.get_data()
+    ad_id = data["editing_ad_id"]
+    ad = session.get(Advertisement, ad_id)
+    
+    if ad:
+        ad.price = message.text
+        session.commit()
+        await state.clear()
+        await message.answer(
+            "✅ Цена успешно обновлена!", 
+            reply_markup=ReplyKeyboardRemove()
+        )
+        await admin_panel(message)
 
 @router.callback_query(F.data.startswith("edit_manager_"))
 async def start_edit_manager(callback: CallbackQuery, state: FSMContext):

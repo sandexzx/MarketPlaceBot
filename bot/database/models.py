@@ -11,7 +11,7 @@ class Advertisement(Base):
     
     id = Column(Integer, primary_key=True)
     description = Column(String, nullable=False)
-    price = Column(Float, nullable=False)
+    price = Column(String, nullable=False)
     manager_link = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
