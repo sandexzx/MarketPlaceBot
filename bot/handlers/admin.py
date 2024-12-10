@@ -100,7 +100,7 @@ async def process_manager_link(message: Message, state: FSMContext, session: Ses
     await state.update_data(manager_link=message.text)
     data = await state.get_data()
 
-    # Формируем предпросмотр
+    # Формируем текст предпросмотра
     preview_text = (
         "📋 Предпросмотр объявления:\n\n"
         f"📝 Описание:\n{data['description']}\n\n"
@@ -109,20 +109,28 @@ async def process_manager_link(message: Message, state: FSMContext, session: Ses
         "Все верно?"
     )
 
-    # Отправляем первое фото с предпросмотром
-    await message.answer_photo(
-        photo=data['photos'][0],
-        caption=preview_text,
+    # Создаем медиа-группу из всех фоток
+    media_group = [
+        InputMediaPhoto(media=photo_id)
+        for photo_id in data['photos'][:-1]  # Берем все фотки кроме последней
+    ]
+    
+    # Добавляем последнюю фотку с текстом описания
+    media_group.append(
+        InputMediaPhoto(
+            media=data['photos'][-1],
+            caption=preview_text
+        )
+    )
+
+    # Отправляем медиа-группу
+    sent_messages = await message.answer_media_group(media_group)
+    
+    # Отправляем кнопки отдельным сообщением
+    await message.answer(
+        "Выберите действие:",
         reply_markup=admin_kb.get_confirm_kb()
     )
-    
-    # Если есть дополнительные фото - отправляем их
-    if len(data['photos']) > 1:
-        media_group = [
-            InputMediaPhoto(media=photo_id)
-            for photo_id in data['photos'][1:]
-        ]
-        await message.answer_media_group(media_group)
 
     await state.set_state(AdminStates.confirm_creation)
 
