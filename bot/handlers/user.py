@@ -75,29 +75,23 @@ async def show_advertisement(message, ad, session, current_position, total_ads, 
         if edit:
             # Удаляем предыдущее сообщение
             await message.delete()
-            message = message.chat
-            
-        await message.send_media_group(media_group)
+            # Получаем объект бота из message
+            bot = message.bot
+            # Отправляем медиагруппу через бота
+            await bot.send_media_group(chat_id=message.chat.id, media=media_group)
+        else:
+            await message.answer_media_group(media_group)
         
-        # Отправляем кнопки навигации отдельным сообщением
-        await message.answer(
-            "Используйте кнопки ниже для навигации:",
-            reply_markup=user_kb.get_navigation_kb(current_position, total_ads)
-        )
-    else:
-        # Если фото одно - отправляем одним сообщением с кнопками
+        # Отправляем кнопки навигации
         if edit:
-            await message.edit_media(
-                InputMediaPhoto(
-                    media=photos[0].photo_file_id,
-                    caption=format_ad_description(ad)
-                ),
+            await message.bot.send_message(
+                chat_id=message.chat.id,
+                text="Используйте кнопки ниже для навигации:",
                 reply_markup=user_kb.get_navigation_kb(current_position, total_ads)
             )
         else:
-            await message.answer_photo(
-                photos[0].photo_file_id,
-                caption=format_ad_description(ad),
+            await message.answer(
+                "Используйте кнопки ниже для навигации:",
                 reply_markup=user_kb.get_navigation_kb(current_position, total_ads)
             )
 
