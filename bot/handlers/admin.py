@@ -50,7 +50,10 @@ async def process_photos(message: Message, state: FSMContext):
     photos = data.get("photos", [])
     photos.append(message.photo[-1].file_id)
     await state.update_data(photos=photos)
-    await message.answer(f"✅ Фото #{len(photos)} загружено! Отправьте ещё или нажмите 'Готово'")
+    await message.answer(
+        f"✅ Фото #{len(photos)} загружено! Отправьте ещё или нажмите 'Готово'",
+        reply_markup=admin_kb.get_photo_upload_kb()  # Добавляем клавиатуру к каждому сообщению
+    )
 
 # Завершение загрузки фото
 @router.message(AdminStates.waiting_for_photos, F.text == "Готово")
