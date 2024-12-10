@@ -12,11 +12,16 @@ from bot.database.models import init_db
 from bot.handlers import admin, user
 from bot.config import BOT_TOKEN, ADMIN_IDS, DATABASE_URL
 
-# Настраиваем логирование
+# Настраиваем логирование в файл
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
+    handlers=[
+        logging.FileHandler('bot.log'),
+        logging.StreamHandler()
+    ]
 )
+
 logger = logging.getLogger(__name__)
 
 # Функция для создания сессии базы данных
