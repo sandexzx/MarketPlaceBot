@@ -89,7 +89,9 @@ async def create_regular_ad(bot: Bot, session, created_at=None):
         price=price,
         manager_link=manager,
         is_promotional=False,
-        created_at=created_at or datetime.utcnow()
+        created_at=created_at or datetime.utcnow(),
+        views_count=0,  # Начальное количество просмотров
+        last_shown=None  # Время последнего просмотра изначально 
     )
     session.add(ad)
     session.flush()
@@ -116,7 +118,9 @@ async def create_promo_ad(bot: Bot, session, created_at=None):
         price="РЕКЛАМНОЕ ПРЕДЛОЖЕНИЕ",
         manager_link="",
         is_promotional=True,
-        created_at=created_at or datetime.utcnow()
+        created_at=created_at or datetime.utcnow(),
+        views_count=0,  # Начальное количество просмотров
+        last_shown=None  # Время последнего просмотра изначально 
     )
     session.add(ad)
     session.flush()
