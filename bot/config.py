@@ -9,6 +9,12 @@ load_dotenv(override=True)
 # Определяем базовую директорию проекта
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Путь к папке с медиафайлами
+MEDIA_DIR = BASE_DIR / "media"
+
+# Путь к приветственной картинке
+WELCOME_IMAGE = MEDIA_DIR / "welcome.PNG"
+
 # Путь к файлу базы данных
 DB_FILE = BASE_DIR / "data" / "bot.db"
 

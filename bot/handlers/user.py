@@ -8,6 +8,10 @@ from ..database.models import Advertisement, Photo
 from ..keyboards import user_kb
 from ..utils import messages
 from ..database.models import User
+from ..config import WELCOME_IMAGE
+from pathlib import Path
+from aiogram.types import FSInputFile
+import logging
 
 router = Router()
 
@@ -15,7 +19,7 @@ router = Router()
 async def cmd_start(message: Message, session: Session):
     """
     Обработчик команды /start
-    Регистрирует пользователя и показывает приветственное сообщение
+    Регистрирует пользователя и показывает приветственное сообщение с картинкой
     """
     # Сохраняем информацию о пользователе
     user = session.query(User).filter(User.telegram_id == message.from_user.id).first()
@@ -29,10 +33,28 @@ async def cmd_start(message: Message, session: Session):
         session.add(user)
         session.commit()
     
-    await message.answer(
-        messages.WELCOME_MESSAGE,
-        reply_markup=user_kb.get_start_kb()
-    )
+    try:
+        # Проверяем существование картинки
+        if Path(WELCOME_IMAGE).exists():
+            # Отправляем картинку с подписью
+            await message.answer_photo(
+                photo=FSInputFile(WELCOME_IMAGE),
+                caption=messages.WELCOME_MESSAGE,
+                reply_markup=user_kb.get_start_kb()
+            )
+        else:
+            # Если картинки нет, отправляем просто текст
+            await message.answer(
+                messages.WELCOME_MESSAGE,
+                reply_markup=user_kb.get_start_kb()
+            )
+    except Exception as e:
+        logging.error(f"Ошибка при отправке приветственного сообщения: {e}")
+        # В случае ошибки отправляем сообщение без картинки
+        await message.answer(
+            messages.WELCOME_MESSAGE,
+            reply_markup=user_kb.get_start_kb()
+        )
 
 
 @router.callback_query(F.data == "show_ads")
