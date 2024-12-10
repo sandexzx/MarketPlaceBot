@@ -273,3 +273,38 @@ async def cmd_ads(message: Message, session: Session):
         current_position=1,
         total_ads=len(ads)
     )
+
+@router.callback_query(F.data.startswith("view_ad_"))
+async def view_specific_ad(callback: CallbackQuery, session: Session):
+    """
+    Показывает конкретное объявление по ID из уведомления
+    """
+    ad_id = int(callback.data.split("_")[2])
+    
+    # Получаем объявление по ID
+    ad = session.get(Advertisement, ad_id)
+    if not ad:
+        await callback.answer("Упс! Похоже, это объявление уже удалено 😢")
+        # Показываем первое доступное объявление
+        await show_first_ad(callback, session)
+        return
+        
+    # Получаем общее количество объявлений для навигации
+    total_ads = session.scalar(select(func.count()).select_from(Advertisement))
+    
+    # Определяем позицию текущего объявления
+    current_position = session.scalar(
+        select(func.count())
+        .select_from(Advertisement)
+        .where(Advertisement.created_at >= ad.created_at)
+    )
+    
+    # Показываем запрошенное объявление
+    await show_advertisement(
+        callback.message,
+        ad,
+        session,
+        current_position=current_position,
+        total_ads=total_ads,
+        edit=True
+    )

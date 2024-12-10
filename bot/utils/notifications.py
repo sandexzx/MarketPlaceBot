@@ -21,7 +21,7 @@ async def notify_new_ad(bot: Bot, session: Session, ad: Advertisement):
     
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[[
-            InlineKeyboardButton(text="🏠 Смотреть", callback_data="show_ads")
+            InlineKeyboardButton(text="🏠 Смотреть", callback_data=f"view_ad_{ad.id}")
         ]]
     )
     
