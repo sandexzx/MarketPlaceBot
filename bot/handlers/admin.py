@@ -11,6 +11,7 @@ from ..database.models import Advertisement, Photo
 from ..keyboards import admin_kb
 from ..utils.states import AdminStates, EditStates
 from ..config import ADMIN_IDS
+from .user import cmd_start
 
 router = Router()
 
@@ -300,6 +301,8 @@ async def exit_admin(message: Message):
         "👋 Выход из панели администратора", 
         reply_markup=ReplyKeyboardRemove()
     )
+    # После сообщения о выходе вызываем команду start
+    await cmd_start(message)
 
 @router.message(EditStates.edit_photos, F.photo)
 async def process_edit_photos(message: Message, state: FSMContext):
