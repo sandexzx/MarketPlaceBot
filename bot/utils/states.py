@@ -6,6 +6,9 @@ class AdminStates(StatesGroup):
     waiting_for_price = State()
     waiting_for_manager = State()
     confirm_creation = State()
+    waiting_for_promo_photos = State()
+    waiting_for_promo_description = State()
+    waiting_for_promo_content = State()
     
 class EditStates(StatesGroup):
     select_ad = State()

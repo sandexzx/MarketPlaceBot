@@ -5,7 +5,10 @@ from ..database.models import Advertisement
 def get_admin_main_kb() -> ReplyKeyboardMarkup:
     """Главное админское меню"""
     keyboard = [
-        [KeyboardButton(text="➕ Добавить объявление")],
+        [
+            KeyboardButton(text="➕ Добавить объявление"),
+            KeyboardButton(text="📢 Добавить рекламу")
+        ],
         [
             KeyboardButton(text="📝 Редактировать объявление"),
             KeyboardButton(text="❌ Удалить объявление")

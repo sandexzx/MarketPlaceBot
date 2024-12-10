@@ -13,6 +13,7 @@ from ..utils.states import AdminStates, EditStates
 from ..config import ADMIN_IDS
 from .user import cmd_start
 from ..utils.notifications import notify_new_ad
+from ..database.models import generate_promo_id
 
 router = Router()
 
@@ -457,3 +458,74 @@ async def back_to_admin(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await callback.message.delete()
     await admin_panel(callback.message)
+
+@router.message(F.text == "📢 Добавить рекламу")
+async def start_add_promo(message: Message, state: FSMContext):
+    """Начинаем процесс создания рекламного объявления"""
+    await state.set_state(AdminStates.waiting_for_promo_photos)
+    await message.answer(
+        "📸 Отправьте фотографии для рекламного объявления (можно несколько).\n"
+        "После загрузки всех фото нажмите кнопку 'Готово'",
+        reply_markup=admin_kb.get_photo_upload_kb()
+    )
+
+@router.message(AdminStates.waiting_for_promo_photos, F.photo)
+async def process_promo_photos(message: Message, state: FSMContext):
+    """Обработка фотографий для рекламного объявления"""
+    data = await state.get_data()
+    photos = data.get("photos", [])
+    photos.append(message.photo[-1].file_id)
+    await state.update_data(photos=photos)
+    await message.answer(
+        f"✅ Фото #{len(photos)} загружено! Отправьте ещё или нажмите 'Готово'",
+        reply_markup=admin_kb.get_photo_upload_kb()
+    )
+
+@router.message(AdminStates.waiting_for_promo_photos, F.text == "Готово")
+async def promo_photos_uploaded(message: Message, state: FSMContext):
+    """Завершение загрузки фото для рекламного объявления"""
+    data = await state.get_data()
+    if not data.get("photos"):
+        await message.answer("❌ Нужно загрузить хотя бы одно фото!")
+        return
+    
+    await state.set_state(AdminStates.waiting_for_promo_content)
+    await message.answer(
+        "📝 Теперь отправьте текст рекламного объявления в свободной форме.\n"
+        "Можете включить описание, цены и любую другую информацию.",
+        reply_markup=ReplyKeyboardRemove()
+    )
+
+@router.message(AdminStates.waiting_for_promo_content)
+async def process_promo_content(message: Message, state: FSMContext, session: Session):
+    """Обработка контента рекламного объявления и его сохранение"""
+    data = await state.get_data()
+    
+    # Генерируем ID для рекламного объявления
+    promo_id = generate_promo_id()
+    
+    # Создаем рекламное объявление
+    ad = Advertisement(
+        id=promo_id,
+        description=message.text,
+        price="Рекламное объявление",  # Можно использовать как маркер в интерфейсе
+        manager_link="",  # Пустая ссылка для рекламных объявлений
+        is_promotional=True
+    )
+    session.add(ad)
+    
+    # Добавляем фотографии
+    for idx, photo_id in enumerate(data["photos"]):
+        photo = Photo(
+            advertisement_id=promo_id,
+            photo_file_id=photo_id,
+            position=idx
+        )
+        session.add(photo)
+    
+    # Сохраняем изменения
+    session.commit()
+    
+    await message.answer("✅ Рекламное объявление успешно создано!")
+    await state.clear()
+    await admin_panel(message)

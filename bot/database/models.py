@@ -12,9 +12,10 @@ class Advertisement(Base):
     id = Column(Integer, primary_key=True)
     description = Column(String, nullable=False)
     price = Column(String, nullable=False)
-    manager_link = Column(String, nullable=False)
+    manager_link = Column(String, nullable=True)  # Делаем nullable, т.к. у рекламных объявлений не будет менеджера
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_promotional = Column(Boolean, default=False)  # Новое поле для отметки рекламных объявлений
     
     # Связь с фотографиями
     photos = relationship("Photo", back_populates="advertisement", cascade="all, delete-orphan")
@@ -41,6 +42,10 @@ class User(Base):
     notifications_enabled = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     last_activity = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+def generate_promo_id() -> int:
+    """Генерирует ID для рекламного объявления, начинающийся с 9"""
+    return int('9' + str(int(datetime.utcnow().timestamp()))[-6:])
 
 # Функция для инициализации БД
 def init_db(database_url: str):

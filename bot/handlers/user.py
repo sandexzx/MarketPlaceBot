@@ -109,7 +109,7 @@ async def show_advertisement(message, ad, session, current_position, total_ads, 
         return
     
     # Формируем клавиатуру навигации с использованием реального ad.id
-    navigation_kb = user_kb.get_navigation_kb(current_position, total_ads, ad.id)
+    navigation_kb = user_kb.get_navigation_kb(current_position, total_ads, ad.id, ad.is_promotional)
 
     # Если фото только одно
     if len(photos) == 1:
@@ -156,13 +156,15 @@ async def show_advertisement(message, ad, session, current_position, total_ads, 
 
 def format_ad_description(ad: Advertisement) -> str:
     """
-    Форматирует описание объявления с эмодзи и разметкой
+    Форматирует описание объявления с учётом типа (обычное/рекламное)
     """
-    return (
-        f"📝 Описание:\n"
-        f"{ad.description}\n\n"
-        f"💰 Цена: {ad.price}\n"
-    )
+    if ad.is_promotional:
+        return f"📢 РЕКЛАМА\n\n{ad.description}"
+    else:
+        return (
+            f"📝 Описание:\n{ad.description}\n\n"
+            f"💰 Цена: {ad.price}\n"
+        )
 
 @router.callback_query(F.data.startswith(("next_", "prev_")))
 async def navigate_ads(callback: CallbackQuery, session: Session):
