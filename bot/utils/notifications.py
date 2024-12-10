@@ -5,6 +5,7 @@ from sqlalchemy import select
 from ..database.models import User, Advertisement
 import logging
 from datetime import datetime
+from ..config import ADMIN_IDS
 
 async def notify_new_ad(bot: Bot, session: Session, ad: Advertisement):
     """
@@ -14,8 +15,11 @@ async def notify_new_ad(bot: Bot, session: Session, ad: Advertisement):
     logging.info(f"Starting notification process for ad ID: {ad.id}")
     
     users = session.scalars(
-        select(User).where(User.notifications_enabled == True)  # noqa: E712
-    ).all()
+    select(User).where(
+        (User.notifications_enabled == True) & # noqa: E712
+        (User.telegram_id.notin_(ADMIN_IDS))
+    )
+).all()
     
     logging.info(f"Found {len(users)} users with enabled notifications")
     
