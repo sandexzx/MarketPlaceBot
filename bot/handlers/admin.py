@@ -141,7 +141,12 @@ async def list_ads_for_edit(message: Message, session: Session):
     text = "📝 Выберите объявление для редактирования:\n\n"
     for ad in ads:
         text += f"ID {ad.id}: {ad.description[:50]}...\n"
-        text += f"💰 Цена: {ad.price}\n\n"
+        # Показываем метку "Рекламное объявление" для промо-объявлений
+        if ad.is_promotional:
+            text += "📢 Рекламное объявление\n"
+        else:
+            text += f"💰 Цена: {ad.price}\n"
+        text += "\n"
 
     await message.answer(text, reply_markup=admin_kb.get_ads_list_kb(ads))
 
