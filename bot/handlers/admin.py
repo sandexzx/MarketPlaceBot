@@ -62,7 +62,7 @@ async def photos_uploaded(message: Message, state: FSMContext):
     await state.set_state(AdminStates.waiting_for_description)
     await message.answer(
         "📝 Теперь отправьте описание объявления:",
-        reply_markup=None
+        reply_markup=ReplyKeyboardRemove()  # Вот тут замена!
     )
 
 # Приём описания объявления
