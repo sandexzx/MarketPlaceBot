@@ -202,6 +202,14 @@ async def confirm_creation(callback: CallbackQuery, state: FSMContext, session: 
     # Удаляем предыдущее сообщение с предпросмотром
     await callback.message.delete()
 
+@router.callback_query(AdminStates.confirm_creation, F.data == "cancel")
+async def cancel_creation(callback: CallbackQuery, state: FSMContext):
+    """Отмена создания объявления"""
+    await state.clear()
+    await callback.message.delete()  # Удаляем сообщение с предпросмотром
+    await callback.message.answer("❌ Создание объявления отменено!")
+    await admin_panel(callback.message)  # Возвращаемся в админку
+
 # Удаление объявлений
 @router.message(F.text == "❌ Удалить объявление")
 async def list_ads_for_delete(message: Message, session: Session):
