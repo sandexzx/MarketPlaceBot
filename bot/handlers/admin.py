@@ -2,6 +2,7 @@ from aiogram import Router, F
 from aiogram.filters import Command, StateFilter
 from aiogram.types import Message, CallbackQuery, InputMediaPhoto
 from aiogram.fsm.context import FSMContext
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from datetime import datetime
@@ -273,3 +274,171 @@ async def show_statistics(message: Message, session: Session):
     )
     
     await message.answer(stats_text)
+
+@router.message(F.text == "Отмена")
+async def cancel_action(message: Message, state: FSMContext):
+    """Отмена текущего действия"""
+    await state.clear()
+    await message.answer(
+        "❌ Действие отменено", 
+        reply_markup=ReplyKeyboardRemove()
+    )
+    await admin_panel(message)
+
+@router.message(F.text == "🔙 Выход")
+async def exit_admin(message: Message):
+    """Выход из админ-панели"""
+    await message.answer(
+        "👋 Выход из панели администратора", 
+        reply_markup=ReplyKeyboardRemove()
+    )
+
+@router.message(EditStates.edit_photos, F.photo)
+async def process_edit_photos(message: Message, state: FSMContext):
+    """Обработка новых фото при редактировании"""
+    data = await state.get_data()
+    photos = data.get("new_photos", [])
+    photos.append(message.photo[-1].file_id)
+    await state.update_data(new_photos=photos)
+    await message.answer(f"✅ Фото #{len(photos)} загружено! Отправьте ещё или нажмите 'Готово'")
+
+@router.message(EditStates.edit_photos, F.text == "Готово")
+async def save_edited_photos(message: Message, state: FSMContext, session: Session):
+    """Сохранение отредактированных фото"""
+    data = await state.get_data()
+    if not data.get("new_photos"):
+        await message.answer("❌ Нужно загрузить хотя бы одно фото!")
+        return
+        
+    ad_id = data["editing_ad_id"]
+    ad = session.get(Advertisement, ad_id)
+    
+    # Удаляем старые фото
+    session.query(Photo).filter(Photo.advertisement_id == ad_id).delete()
+    
+    # Добавляем новые
+    for idx, photo_id in enumerate(data["new_photos"]):
+        photo = Photo(
+            advertisement_id=ad_id,
+            photo_file_id=photo_id,
+            position=idx
+        )
+        session.add(photo)
+        
+    session.commit()
+    await state.clear()
+    await message.answer(
+        "✅ Фотографии успешно обновлены!", 
+        reply_markup=ReplyKeyboardRemove()
+    )
+    await admin_panel(message)
+
+@router.callback_query(F.data.startswith("edit_desc_"))
+async def start_edit_description(callback: CallbackQuery, state: FSMContext):
+    """Начинаем редактирование описания"""
+    ad_id = int(callback.data.split('_')[2])
+    await state.update_data(editing_ad_id=ad_id)
+    await state.set_state(EditStates.edit_description)
+    
+    await callback.message.answer(
+        "📝 Отправьте новое описание объявления:", 
+        reply_markup=ReplyKeyboardMarkup(
+            keyboard=[[KeyboardButton(text="Отмена")]], 
+            resize_keyboard=True
+        )
+    )
+
+@router.message(EditStates.edit_description)
+async def save_edited_description(message: Message, state: FSMContext, session: Session):
+    """Сохраняем новое описание"""
+    data = await state.get_data()
+    ad_id = data["editing_ad_id"]
+    ad = session.get(Advertisement, ad_id)
+    
+    if ad:
+        ad.description = message.text
+        session.commit()
+        await state.clear()
+        await message.answer(
+            "✅ Описание успешно обновлено!", 
+            reply_markup=ReplyKeyboardRemove()
+        )
+        await admin_panel(message)
+
+@router.callback_query(F.data.startswith("edit_price_"))
+async def start_edit_price(callback: CallbackQuery, state: FSMContext):
+    """Начинаем редактирование цены"""
+    ad_id = int(callback.data.split('_')[2])
+    await state.update_data(editing_ad_id=ad_id)
+    await state.set_state(EditStates.edit_price)
+    
+    await callback.message.answer(
+        "💰 Укажите новую цену (только число):",
+        reply_markup=ReplyKeyboardMarkup(
+            keyboard=[[KeyboardButton(text="Отмена")]], 
+            resize_keyboard=True
+        )
+    )
+
+@router.message(EditStates.edit_price)
+async def save_edited_price(message: Message, state: FSMContext, session: Session):
+    """Сохраняем новую цену"""
+    try:
+        price = float(message.text.replace(',', '.'))
+        if price <= 0:
+            raise ValueError
+            
+        data = await state.get_data()
+        ad_id = data["editing_ad_id"]
+        ad = session.get(Advertisement, ad_id)
+        
+        if ad:
+            ad.price = price
+            session.commit()
+            await state.clear()
+            await message.answer(
+                "✅ Цена успешно обновлена!", 
+                reply_markup=ReplyKeyboardRemove()
+            )
+            await admin_panel(message)
+    except ValueError:
+        await message.answer("❌ Некорректная цена! Введите положительное число:")
+
+@router.callback_query(F.data.startswith("edit_manager_"))
+async def start_edit_manager(callback: CallbackQuery, state: FSMContext):
+    """Начинаем редактирование ссылки на менеджера"""
+    ad_id = int(callback.data.split('_')[2])
+    await state.update_data(editing_ad_id=ad_id)
+    await state.set_state(EditStates.edit_manager)
+    
+    await callback.message.answer(
+        "👤 Отправьте новую ссылку на менеджера:",
+        reply_markup=ReplyKeyboardMarkup(
+            keyboard=[[KeyboardButton(text="Отмена")]], 
+            resize_keyboard=True
+        )
+    )
+
+@router.message(EditStates.edit_manager)
+async def save_edited_manager(message: Message, state: FSMContext, session: Session):
+    """Сохраняем новую ссылку на менеджера"""
+    data = await state.get_data()
+    ad_id = data["editing_ad_id"]
+    ad = session.get(Advertisement, ad_id)
+    
+    if ad:
+        ad.manager_link = message.text
+        session.commit()
+        await state.clear()
+        await message.answer(
+            "✅ Контакт менеджера успешно обновлен!", 
+            reply_markup=ReplyKeyboardRemove()
+        )
+        await admin_panel(message)
+
+@router.callback_query(F.data == "back_to_admin")
+async def back_to_admin(callback: CallbackQuery, state: FSMContext):
+    """Возврат в главное меню админки"""
+    await state.clear()
+    await callback.message.delete()
+    await admin_panel(callback.message)
