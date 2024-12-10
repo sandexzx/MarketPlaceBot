@@ -182,7 +182,7 @@ async def confirm_creation(callback: CallbackQuery, state: FSMContext, session: 
         manager_link=data["manager_link"]
     )
     session.add(ad)
-    session.flush()  # Получаем id объявления
+    session.flush()
     
     # Добавляем фотки
     for idx, photo_id in enumerate(data["photos"]):
@@ -196,7 +196,10 @@ async def confirm_creation(callback: CallbackQuery, state: FSMContext, session: 
     session.commit()
     
     await state.clear()
-    await callback.message.edit_text("✅ Объявление успешно создано!")
+    # Отправляем новое сообщение вместо редактирования
+    await callback.message.answer("✅ Объявление успешно создано!")
+    # Удаляем предыдущее сообщение с предпросмотром
+    await callback.message.delete()
 
 # Удаление объявлений
 @router.message(F.text == "❌ Удалить объявление")
