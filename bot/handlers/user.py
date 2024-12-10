@@ -225,3 +225,29 @@ async def toggle_notifications(message: Message, session: Session):
     
     status = "включены ✅" if user.notifications_enabled else "выключены ❌"
     await message.answer(f"Уведомления о новых объявлениях {status}")
+
+@router.message(Command("ads"))
+async def cmd_ads(message: Message, session: Session):
+    """
+    Обработчик команды /ads
+    Показывает доступные объявления
+    """
+    # Получаем все объявления, отсортированные по дате создания
+    query = select(Advertisement).order_by(Advertisement.created_at.desc())
+    ads = session.scalars(query).all()
+    
+    if not ads:
+        await message.answer(
+            messages.NO_ADS_MESSAGE,
+            reply_markup=user_kb.get_start_kb()
+        )
+        return
+        
+    # Показываем первое объявление
+    await show_advertisement(
+        message,
+        ads[0],
+        session,
+        current_position=1,
+        total_ads=len(ads)
+    )
