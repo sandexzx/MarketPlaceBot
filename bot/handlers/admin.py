@@ -202,6 +202,8 @@ async def confirm_creation(callback: CallbackQuery, state: FSMContext, session: 
     await callback.message.answer("✅ Объявление успешно создано!")
     # Удаляем предыдущее сообщение с предпросмотром
     await callback.message.delete()
+    # Возвращаемся в админку
+    await admin_panel(callback.message)
 
 @router.callback_query(AdminStates.confirm_creation, F.data == "cancel")
 async def cancel_creation(callback: CallbackQuery, state: FSMContext):
