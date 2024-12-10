@@ -4,7 +4,7 @@ from typing import List
 from dotenv import load_dotenv
 
 # Загружаем переменные окружения
-load_dotenv()
+load_dotenv(override=True)
 
 # Определяем базовую директорию проекта
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -49,6 +49,7 @@ if not BOT_TOKEN:
 
 # Получаем список админских ID
 ADMIN_IDS = get_admin_ids()
+print(f"Загруженные админские ID: {ADMIN_IDS}")
 
 # Настройки базы данных
 def init_database_path():
