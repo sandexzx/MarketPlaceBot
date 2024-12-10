@@ -3,17 +3,19 @@ from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InputMediaPhoto
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
+from datetime import datetime
+from pathlib import Path
+from aiogram.types import FSInputFile
+import logging
+import random
+from sqlalchemy import or_
 
 from ..database.models import Advertisement, Photo
 from ..keyboards import user_kb
 from ..utils import messages
 from ..database.models import User
 from ..config import WELCOME_IMAGE
-from pathlib import Path
-from aiogram.types import FSInputFile
-import logging
-import random
-from sqlalchemy import or_
+
 
 router = Router()
 
@@ -95,6 +97,12 @@ async def show_advertisement(message, ad, session, current_position, total_ads, 
     Загружает фотографии, формирует описание и добавляет кнопки навигации.
     Использует реальный ad.id для корректной навигации.
     """
+
+    # Увеличиваем счетчик просмотров
+    ad.views_count += 1
+    ad.last_shown = datetime.utcnow()
+    session.commit()
+
     # Получаем все фото объявления, отсортированные по позиции
     photos = session.scalars(
         select(Photo)

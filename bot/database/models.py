@@ -16,6 +16,8 @@ class Advertisement(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     is_promotional = Column(Boolean, default=False)  # Новое поле для отметки рекламных объявлений
+    views_count = Column(Integer, default=0)  # Количество показов
+    last_shown = Column(DateTime, nullable=True)  # Время последнего показа
     
     # Связь с фотографиями
     photos = relationship("Photo", back_populates="advertisement", cascade="all, delete-orphan")

@@ -275,24 +275,68 @@ async def delete_ad(callback: CallbackQuery, session: Session):
 # Статистика
 @router.message(F.text == "📊 Статистика")
 async def show_statistics(message: Message, session: Session):
-    """Показываем статистику по объявлениям"""
+    """Показываем расширенную статистику по объявлениям"""
+    
+    # Базовая статистика
     total_ads = session.scalar(select(func.count()).select_from(Advertisement))
     total_photos = session.scalar(select(func.count()).select_from(Photo))
     
-    # Самое дорогое объявление
-    most_expensive = session.scalar(
+    # Статистика по рекламным объявлениям
+    promo_ads = session.scalar(
+        select(func.count())
+        .select_from(Advertisement)
+        .where(Advertisement.is_promotional == True)  # noqa: E712
+    )
+    
+    # Общее количество просмотров всех объявлений
+    total_views = session.scalar(
+        select(func.sum(Advertisement.views_count))
+        .select_from(Advertisement)
+    ) or 0
+    
+    # Статистика по рекламным объявлениям
+    promo_views = session.scalar(
+        select(func.sum(Advertisement.views_count))
+        .select_from(Advertisement)
+        .where(Advertisement.is_promotional == True)  # noqa: E712
+    ) or 0
+    
+    # Самое просматриваемое объявление
+    most_viewed = session.scalar(
         select(Advertisement)
-        .order_by(Advertisement.price.desc())
+        .order_by(Advertisement.views_count.desc())
         .limit(1)
     )
     
+    # Последнее просмотренное объявление
+    last_viewed = session.scalar(
+        select(Advertisement)
+        .where(Advertisement.last_shown.isnot(None))
+        .order_by(Advertisement.last_shown.desc())
+        .limit(1)
+    )
+
     stats_text = (
         "📊 Статистика бота:\n\n"
         f"📝 Всего объявлений: {total_ads}\n"
         f"📸 Всего фотографий: {total_photos}\n"
-        f"💰 Самая высокая цена: {most_expensive.price:,.2f} ₽\n" if most_expensive else ""
-        f"📅 Последнее обновление: {datetime.now().strftime('%d.%m.%Y %H:%M')}"
+        f"👁 Всего просмотров: {total_views}\n\n"
+        f"📢 Рекламных объявлений: {promo_ads}\n"
+        f"👀 Просмотров рекламы: {promo_views}\n\n"
     )
+    
+    if most_viewed:
+        stats_text += (
+            f"🏆 Самое просматриваемое:\n"
+            f"ID{most_viewed.id}: {most_viewed.description[:50]}...\n"
+            f"Просмотров: {most_viewed.views_count}\n\n"
+        )
+    
+    if last_viewed:
+        stats_text += (
+            f"🕒 Последний просмотр:\n"
+            f"ID{last_viewed.id} в {last_viewed.last_shown.strftime('%H:%M %d.%m.%Y')}\n"
+        )
     
     await message.answer(stats_text)
 
@@ -307,14 +351,13 @@ async def cancel_action(message: Message, state: FSMContext):
     await admin_panel(message)
 
 @router.message(F.text == "🔙 Выход")
-async def exit_admin(message: Message):
+async def exit_admin(message: Message, session: Session):  # Добавляем параметр session
     """Выход из админ-панели"""
     await message.answer(
         "👋 Выход из панели администратора", 
         reply_markup=ReplyKeyboardRemove()
     )
-    # После сообщения о выходе вызываем команду start
-    await cmd_start(message)
+    await cmd_start(message, session)
 
 @router.message(EditStates.edit_photos, F.photo)
 async def process_edit_photos(message: Message, state: FSMContext):
