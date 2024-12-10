@@ -219,9 +219,17 @@ async def navigate_ads(callback: CallbackQuery, session: Session):
 
     # Определяем следующее объявление
     if action == "next":
-        # Если текущее объявление рекламное, показываем следующее обычное
         if current_ad.is_promotional:
-            current_index = 0
+            # Если это реклама, ищем следующее объявление после последнего просмотренного
+            last_viewed = session.scalar(
+                select(Advertisement)
+                .where(Advertisement.is_promotional == False)  # noqa: E712
+                .order_by(Advertisement.last_shown.desc())
+            )
+            if last_viewed:
+                current_index = next((i for i, ad in enumerate(regular_ads) if ad.id == last_viewed.id), -1) + 1
+            else:
+                current_index = 0
         else:
             current_index = next((i for i, ad in enumerate(regular_ads) if ad.id == ad_id), None)
             if current_index is None:
