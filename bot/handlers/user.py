@@ -67,8 +67,8 @@ async def show_first_ad(callback: CallbackQuery, session: Session):
     Показывает первое доступное объявление
     Добавляет кнопки навигации и контакта с менеджером
     """
-    # Получаем все ID объявлений, отсортированные по дате создания
-    query = select(Advertisement).order_by(Advertisement.created_at.desc())
+    # Получаем только обычные объявления
+    query = select(Advertisement).where(Advertisement.is_promotional == False).order_by(Advertisement.created_at.desc())
     ads = session.scalars(query).all()
     
     if not ads:  # Проверяем, пуст ли список ads
