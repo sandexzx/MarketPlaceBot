@@ -30,7 +30,7 @@
 
 1. Клонируйте репозиторий:
 ```bash
-git clone https://github.com/your-username/marketplace-bot.git
+git clone https://github.com/sandexzx/MarketPlaceBot.git
 cd marketplace-bot
 ```
 
