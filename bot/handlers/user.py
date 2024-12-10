@@ -123,20 +123,29 @@ async def show_advertisement(message, ad, session, current_position, total_ads, 
 
     # Если фото только одно
     if len(photos) == 1:
-        if edit:
-            await message.delete()
-            await message.bot.send_photo(
-                chat_id=message.chat.id,
-                photo=photos[0].photo_file_id,
-                caption=format_ad_description(ad),
-                reply_markup=navigation_kb
-            )
-        else:
-            await message.answer_photo(
-                photo=photos[0].photo_file_id,
-                caption=format_ad_description(ad),
-                reply_markup=navigation_kb
-            )
+        # Если фото только одно
+        if len(photos) == 1:
+            if edit:
+                await message.delete()
+                await message.bot.send_photo(
+                    chat_id=message.chat.id,
+                    photo=photos[0].photo_file_id,
+                    caption=format_ad_description(ad)
+                )
+                await message.bot.send_message(
+                    chat_id=message.chat.id,
+                    text="Используйте кнопки ниже для навигации:",
+                    reply_markup=navigation_kb
+                )
+            else:
+                await message.answer_photo(
+                    photo=photos[0].photo_file_id,
+                    caption=format_ad_description(ad)
+                )
+                await message.answer(
+                    "Используйте кнопки ниже для навигации:",
+                    reply_markup=navigation_kb
+                )
     else:
         # Если фото несколько
         media_group = [
